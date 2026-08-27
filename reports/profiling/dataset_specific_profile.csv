@@ -1,0 +1,23 @@
+domain,metric_name,metric_value,interpretation
+customers,distinct_customer_id,99441,Transactional customer identifiers.
+customers,distinct_customer_unique_id,96096,Persistent customer identifiers.
+customers,persistent_ids_with_multiple_records,2997,Persistent customers represented by more than one customer_id.
+customers,max_records_per_persistent_customer,17,Maximum customer records linked to one customer_unique_id.
+orders,orders_without_items,775,Orders with no corresponding record in the order_items source.
+orders,orders_without_payments,1,Orders with no corresponding record in the payments source.
+orders,orders_without_reviews,768,Orders with no corresponding record in the reviews source.
+payments,orders_with_multiple_payment_records,2961,Orders represented by more than one payment record.
+payments,max_payment_records_per_order,29,Maximum observed payment records associated with one order.
+reviews,distinct_review_id,98410,Distinct review identifiers observed in the review source.
+reviews,duplicated_review_ids,789,Review identifiers appearing in more than one source row; review_id alone is therefore not a unique row key.
+reviews,orders_with_multiple_reviews,547,Orders associated with more than one review record.
+reviews,max_reviews_per_order,3,Maximum review records associated with one order.
+products,products_missing_category,610,Products without a source product category.
+products,products_missing_physical_attributes,2,Products missing at least one weight or dimension field.
+products,distinct_product_categories,73,Non-null Portuguese categories observed in Products.
+products,categories_without_translation,2,Categories used by Products but absent from the English translation reference.
+products,untranslated_category_names,pc_gamer | portateis_cozinha_e_preparadores_de_alimentos,Names of product categories without translation coverage.
+geolocation,distinct_zip_prefixes,19015,Distinct ZIP-code prefixes represented in geolocation.
+geolocation,duplicate_rows_after_first,261831,Exact duplicate geolocation rows beyond their first occurrence.
+geolocation,zip_prefixes_with_multiple_rows,17972,"ZIP-code prefixes represented by multiple source rows, confirming that ZIP prefix is not a unique source key."
+geolocation,max_rows_per_zip_prefix,1146,Maximum geolocation observations associated with one ZIP prefix.

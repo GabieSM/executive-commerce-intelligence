@@ -1,0 +1,7 @@
+relationship_name,child_source,child_column,parent_source,parent_column,child_row_count,orphan_row_count,orphan_key_count,coverage_percentage,relationship_is_valid
+orders_to_customers,orders,customer_id,customers,customer_id,99441,0,0,100.0,True
+order_items_to_orders,order_items,order_id,orders,order_id,112650,0,0,100.0,True
+order_items_to_products,order_items,product_id,products,product_id,112650,0,0,100.0,True
+order_items_to_sellers,order_items,seller_id,sellers,seller_id,112650,0,0,100.0,True
+payments_to_orders,payments,order_id,orders,order_id,103886,0,0,100.0,True
+reviews_to_orders,reviews,order_id,orders,order_id,99224,0,0,100.0,True
