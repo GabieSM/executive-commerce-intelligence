@@ -1,0 +1,39 @@
+services:
+  postgres:
+    # PostgreSQL is the physical storage layer for the analytical warehouse.
+    image: postgres:16-alpine
+
+    container_name: executive-commerce-postgres
+
+    environment:
+      # Values are read from the local .env file instead of being hard-coded.
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    ports:
+      # Expose PostgreSQL to the host machine so Python, dbt, and DBeaver
+      # can connect to the warehouse.
+      - "${POSTGRES_PORT:-5432}:5432"
+
+    volumes:
+      # Persist database data even when the container is stopped or recreated.
+      - postgres_data:/var/lib/postgresql/data
+
+      # Run initialization SQL only when PostgreSQL creates a new data volume.
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+
+    healthcheck:
+      # Confirm that PostgreSQL is ready to accept connections.
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  # Docker-managed persistent volume for PostgreSQL data.
+  postgres_data:
