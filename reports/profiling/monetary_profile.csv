@@ -1,0 +1,4 @@
+source_name,column_name,row_count,null_count,negative_count,zero_count,minimum,p01,median,mean,p95,p99,maximum
+order_items,price,112650,0,0,0,0.85,9.99,74.99,120.6537,349.9,890.0,6735.0
+order_items,freight_value,112650,0,0,383,0.0,4.4198,16.26,19.9903,45.12,84.52,409.68
+payments,payment_value,103886,0,0,9,0.0,6.69,100.0,154.1004,437.635,1039.9165,13664.08

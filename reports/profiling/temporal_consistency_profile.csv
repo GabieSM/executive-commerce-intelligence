@@ -1,0 +1,6 @@
+check_name,comparable_row_count,violation_count,violation_percentage,interpretation
+approval_before_purchase,99281,0,0.0,Order approval occurs before the recorded purchase timestamp.
+carrier_handoff_before_approval,97644,1359,1.3918,Carrier handoff occurs before the recorded order approval.
+customer_delivery_before_carrier_handoff,96475,23,0.0238,Customer delivery occurs before the recorded carrier handoff.
+customer_delivery_before_purchase,96476,0,0.0,Customer delivery occurs before the recorded purchase.
+estimated_delivery_before_purchase,99441,0,0.0,Estimated delivery occurs before the recorded purchase.

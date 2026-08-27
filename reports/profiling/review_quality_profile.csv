@@ -1,0 +1,8 @@
+metric_name,metric_value
+review_rows,99224.0
+valid_review_scores,99224.0
+invalid_review_scores,0.0
+average_review_score,4.0864
+median_review_score,5.0
+low_review_rate_percentage,14.689
+high_review_rate_percentage,77.068

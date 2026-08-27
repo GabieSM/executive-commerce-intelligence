@@ -1,0 +1,12 @@
+metric_name,metric_value
+orders_with_item_values,98666.0
+orders_with_payment_values,99440.0
+orders_present_in_both,98665.0
+orders_with_items_but_no_payment,1.0
+orders_with_payment_but_no_items,775.0
+orders_reconciled_exactly,98089.0
+exact_reconciliation_rate_percentage,99.4162
+orders_reconciled_within_one_cent,98362.0
+one_cent_reconciliation_rate_percentage,99.6929
+orders_difference_above_one_cent,303.0
+maximum_absolute_difference,182.81

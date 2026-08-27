@@ -1,0 +1,14 @@
+metric_name,metric_value
+delivered_orders,96478.0
+delivered_missing_approval_timestamp,14.0
+delivered_missing_carrier_timestamp,2.0
+delivered_missing_customer_delivery_timestamp,8.0
+delivery_lead_time_observations,96470.0
+median_delivery_lead_time_days,10.2175
+p95_delivery_lead_time_days,29.274
+maximum_delivery_lead_time_days,209.6286
+delivery_estimate_comparisons,96470.0
+late_delivered_orders,7826.0
+late_delivery_rate_percentage,8.1124
+median_days_early_late,-11.9481
+maximum_days_late,188.9751

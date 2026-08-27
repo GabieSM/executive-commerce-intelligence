@@ -1,0 +1,7 @@
+exception_domain,exception_type,exception_count
+temporal,carrier_handoff_before_approval,1359
+temporal,customer_delivery_before_carrier_handoff,23
+payments,difference_above_one_cent,303
+relationships,orders_without_items,775
+relationships,orders_without_payments,1
+relationships,orders_without_reviews,768
