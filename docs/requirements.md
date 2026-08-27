@@ -1272,3 +1272,159 @@ Any material requirement change should be:
 
 The requirements should therefore be treated as a living specification rather than a fixed document disconnected from implementation.
 
+# 9. Source Validation Status
+
+The initial business, data, analytical, and non-functional requirements were defined before detailed inspection of the source data.
+
+A reproducible source-profiling and data-quality workflow has subsequently been implemented to validate the structural assumptions underlying the requirements.
+
+The profiling process includes:
+
+* table and column profiling;
+* missing-value analysis;
+* duplicate detection;
+* source-key validation;
+* referential-integrity validation;
+* cardinality analysis;
+* dataset-specific profiling;
+* timestamp and temporal-consistency validation;
+* monetary-value profiling;
+* payment reconciliation;
+* delivery-quality profiling;
+* review-score validation;
+* exception-level investigation.
+
+The following section records how the original data requirements were affected by empirical source validation.
+
+---
+
+## 9.1 Data Requirement Validation Summary
+
+| Requirement                                | Validation Status                                         | Key Evidence                                                                                                                                                                                                                          | Implementation Implication                                                                                                                                                                 |
+| ------------------------------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **DR-001 — Order-Level Transaction Data**  | **Validated with exceptions**                             | 99,441 orders and 99,441 unique `order_id` values confirm one row per order. Eight order statuses are present. Operational timestamps contain some missing values.                                                                    | Preserve order grain and status. KPI populations must define required statuses and timestamps explicitly.                                                                                  |
+| **DR-002 — Persistent Customer Identity**  | **Validated**                                             | 99,441 unique `customer_id` values but only 96,096 `customer_unique_id` values. 2,997 persistent identifiers occur in multiple customer records, with a maximum of 17 records for one persistent customer.                            | `customer_unique_id` must be used for repeat purchasing, cohorts, retention, frequency, and RFM analysis.                                                                                  |
+| **DR-003 — Order Item Grain**              | **Validated**                                             | 112,650 rows and 112,650 distinct `order_id + order_item_id` combinations.                                                                                                                                                            | The natural source grain is one order-item position. Order-level measures must be aggregated before being combined with this grain.                                                        |
+| **DR-004 — Product Attributes**            | **Validated with exceptions**                             | 32,951 unique products. 610 products have no category, 2 products are missing at least one physical attribute, and 2 observed product categories have no English translation.                                                         | Missing and untranslated categories must remain identifiable. Category enrichment must not use an inner join that silently removes products.                                               |
+| **DR-005 — Seller Identity**               | **Validated**                                             | 3,095 rows and 3,095 unique `seller_id` values. All seller references from Order Items resolve successfully.                                                                                                                          | Seller-level dimensional modeling can use the validated source identifier as the natural key.                                                                                              |
+| **DR-006 — Payment Data**                  | **Validated with multi-row grain**                        | `order_id + payment_sequential` uniquely identifies all 103,886 payment records. 2,961 orders contain multiple payment records, with a maximum of 29 records for one order.                                                           | Payment records must remain at payment-sequence grain or be explicitly aggregated to order grain before joining to other facts.                                                            |
+| **DR-007 — Customer Review Data**          | **Validated with multi-row grain**                        | 99,224 review rows. `review_id` alone is not unique, while `review_id + order_id` uniquely identifies the source rows. 547 orders have multiple reviews, with a maximum of 3 reviews per order.                                       | Reviews must not be joined to an order-level model under an assumed one-review-per-order relationship. Review-grain logic must be explicit.                                                |
+| **DR-008 — Delivery Performance Data**     | **Validated with data-quality conditions**                | 96,478 orders have status `delivered`. 14 delivered orders lack an approval timestamp, 2 lack a carrier timestamp, and 8 lack the customer-delivery timestamp.                                                                        | Delivery KPIs must define required timestamps and exclude unavailable comparisons from denominators rather than imputing them.                                                             |
+| **DR-009 — Geographic Data**               | **Validated with significant transformation requirement** | Geolocation contains 1,000,163 rows but only 19,015 ZIP-code prefixes. 261,831 rows are exact duplicates, 17,972 ZIP prefixes have multiple rows, and one ZIP prefix has up to 1,146 observations.                                    | Raw geolocation must be standardized to a controlled geographic grain before enrichment. Direct joins from customers or sellers to raw geolocation are prohibited for analytical measures. |
+| **DR-010 — Calendar & Time Dimensions**    | **Validated**                                             | Order purchase activity spans the historical observation window required for calendar analysis. Source timestamps support derived date attributes.                                                                                    | A reusable date dimension should be generated for consistent period-based analytics.                                                                                                       |
+| **DR-011 — Order Status**                  | **Validated**                                             | Eight statuses were observed: `delivered`, `shipped`, `canceled`, `unavailable`, `invoiced`, `processing`, `created`, and `approved`.                                                                                                 | There will be no universal global order-status filter. Analytical populations must be defined per KPI.                                                                                     |
+| **DR-012 — Monetary Measures**             | **Validated with reconciliation exceptions**              | No negative values were found in item price, freight value, or payment value. Payment and item-plus-freight totals reconcile within one cent for 99.6929% of comparable orders; 303 orders differ by more than one cent.              | GMV, freight, and payment value must remain separate governed measures. Payment value must not be assumed to equal item value plus freight universally.                                    |
+| **DR-013 — Referential Integrity**         | **Validated**                                             | Zero orphan keys were found across Orders → Customers, Order Items → Orders, Order Items → Products, Order Items → Sellers, Payments → Orders, and Reviews → Orders.                                                                  | Core source relationships can be modeled with high confidence while retaining automated referential-integrity tests downstream.                                                            |
+| **DR-014 — Duplicate Detection**           | **Validated with source-specific exception**              | No complete duplicate rows were found in the primary transactional sources. Geolocation contains 261,831 duplicate rows beyond the first occurrence.                                                                                  | Deduplication logic must be source-specific and must not be applied globally without understanding expected grain.                                                                         |
+| **DR-015 — Missing Data**                  | **Validated as required**                                 | Missingness exists in operational timestamps, product categories, product physical attributes, reviews, and selected child relationships.                                                                                             | Missing values must remain distinct from zero or negative business outcomes and must be handled according to metric-specific rules.                                                        |
+| **DR-016 — Data-Type & Domain Validation** | **Validated with continued staging requirements**         | Monetary values are non-negative. All 99,224 observed review scores fall within the valid 1–5 scale. Source timestamps are provided through CSV fields and require explicit datetime conversion downstream.                           | Staging models must enforce target data types, accepted values, and appropriate domain tests.                                                                                              |
+| **DR-017 — Temporal Consistency**          | **Validated with exceptions**                             | No approval-before-purchase, customer-delivery-before-purchase, or estimated-delivery-before-purchase violations were found. 1,359 records show carrier handoff before approval and 23 show customer delivery before carrier handoff. | Temporal anomalies must be preserved and flagged rather than silently corrected or removed. Intermediate operational-duration metrics must use valid-sequence populations.                 |
+| **DR-018 — Raw Data Preservation**         | **Implemented**                                           | Original CSV files are stored under `data/raw/`, excluded from Git, and are not modified by profiling workflows.                                                                                                                      | Cleaning and business transformations will occur only in downstream layers.                                                                                                                |
+| **DR-019 — Source Traceability**           | **Implemented in profiling layer**                        | Profiling code and generated reports are version-controlled and reproduce structural, quality, and exception findings.                                                                                                                | Future warehouse and dbt models should extend this lineage from source through marts and KPIs.                                                                                             |
+| **DR-020 — Data Privacy**                  | **Maintained**                                            | The project uses the anonymized source identifiers and does not attempt to reconstruct customer identities.                                                                                                                           | Customer-level modeling will continue to use anonymous analytical identifiers only.                                                                                                        |
+
+---
+
+## 9.2 Validated Source Grains
+
+Source profiling confirmed the following grains:
+
+| Source               | Validated Grain                                                                                 |
+| -------------------- | ----------------------------------------------------------------------------------------------- |
+| Customers            | One row per `customer_id`                                                                       |
+| Orders               | One row per `order_id`                                                                          |
+| Order Items          | One row per `order_id + order_item_id`                                                          |
+| Payments             | One row per `order_id + payment_sequential`                                                     |
+| Reviews              | One row per `review_id + order_id`                                                              |
+| Products             | One row per `product_id`                                                                        |
+| Sellers              | One row per `seller_id`                                                                         |
+| Category Translation | One row per `product_category_name`                                                             |
+| Geolocation          | Multiple observations per ZIP-code prefix; analytical grain requires downstream standardization |
+
+These grains will guide fact-table design, staging transformations, and join strategies.
+
+---
+
+## 9.3 Validated Core Referential Integrity
+
+The following source relationships achieved 100% referential coverage during profiling:
+
+* Orders → Customers through `customer_id`;
+* Order Items → Orders through `order_id`;
+* Order Items → Products through `product_id`;
+* Order Items → Sellers through `seller_id`;
+* Payments → Orders through `order_id`;
+* Reviews → Orders through `order_id`.
+
+No orphan foreign-key values were found in these relationships.
+
+This validation confirms structural consistency but does not eliminate the need for downstream automated referential-integrity tests.
+
+---
+
+## 9.4 Analytical Population Implications
+
+Source validation confirms that the platform should not rely on a single universal definition of a **valid order**.
+
+Different analytical questions require different eligible populations.
+
+### Commercial Population
+
+Commercial measures such as GMV and Items Sold should originate from eligible order-item records.
+
+Order status treatment must be explicitly documented in the KPI framework.
+
+### Customer Lifecycle Population
+
+Customer acquisition, repeat purchasing, cohorts, and RFM must use `customer_unique_id` and a documented valid-purchase population.
+
+### Delivery Population
+
+Delivery metrics should primarily use delivered orders with the timestamps required by each calculation.
+
+Orders missing required timestamps must remain measurable as unavailable comparisons rather than being silently imputed.
+
+### Customer Experience Population
+
+Review KPIs should use valid observed review records.
+
+An order without a review represents **no observed review**, not a review score of zero.
+
+### Payment Population
+
+Payment measures should originate from payment records and be aggregated to an appropriate grain before being combined with order or item measures.
+
+Payment value, GMV, and freight must remain conceptually distinct measures.
+
+---
+
+## 9.5 Data Quality Treatment Principles
+
+The profiling results establish the following implementation principles:
+
+1. source anomalies will be preserved in raw and staging layers;
+2. invalid or questionable records will be flagged rather than silently deleted;
+3. metric-specific populations will be defined in governed analytical models;
+4. one-to-many relationships will be aggregated to compatible grains before analytical joins;
+5. monetary reconciliation will use integer-cent logic rather than floating-point equality;
+6. missing values will remain distinct from valid zero values;
+7. source geolocation will be standardized before customer or seller enrichment;
+8. review multiplicity will be explicitly handled before producing order-level customer-experience metrics;
+9. temporal-duration metrics will use appropriate sequence-validity rules;
+10. all material exclusions must be documented and reproducible.
+
+---
+
+## 9.6 Validation Evidence
+
+The validation findings are generated through version-controlled profiling workflows located under:
+
+`src/profiling/`
+
+The generated evidence is stored under:
+
+`reports/profiling/`
+
+including detailed exception-level reports where source records require additional investigation.
+
+These reports provide the empirical foundation for subsequent KPI validation, staging rules, dimensional modeling, and analytical mart design.
