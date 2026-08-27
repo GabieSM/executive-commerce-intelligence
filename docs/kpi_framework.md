@@ -1328,3 +1328,526 @@ Metric is available to approved analytical outputs such as marts, notebooks, or 
 
 Any material change after publication must be documented and version-controlled.
 
+# 12. Validated Analytical Population Rules
+
+Source profiling confirmed that different analytical questions require different eligible record populations.
+
+The platform will therefore not use a single universal **valid order** filter.
+
+Instead, governed analytical populations are defined according to the business meaning, source grain, and data-quality requirements of each metric.
+
+Each KPI must reference the appropriate population before it can be classified as **Validated**.
+
+---
+
+## 12.1 Population Governance Principles
+
+### Population-Specific Eligibility
+
+A record may be valid for one analytical purpose and invalid or unavailable for another.
+
+For example:
+
+- an order may be valid for order-status reporting but not for completed-sales analysis;
+- a delivered order may be valid for GMV but unavailable for a delivery-duration metric if the required delivery timestamp is missing;
+- an order without a review remains valid commercially but is unavailable for review-score analysis;
+- a payment reconciliation exception does not invalidate the underlying merchandise transaction.
+
+Therefore, records must not be globally removed from the analytical platform solely because they fail one metric-specific condition.
+
+---
+
+### Preservation Before Exclusion
+
+Source records must remain preserved in raw, staging, and appropriate warehouse layers.
+
+Metric-specific exclusions should occur through explicit analytical population rules rather than destructive source cleaning.
+
+---
+
+### Explicit Denominators
+
+Ratio KPIs must document the exact population represented by their denominator.
+
+For example:
+
+> **Late Delivery Rate**
+
+must divide late delivered orders by delivered orders with sufficient actual and estimated delivery information, not by all marketplace orders.
+
+---
+
+### Grain Compatibility
+
+Population definitions must preserve the natural grain of the underlying metric.
+
+Examples:
+
+- GMV originates at order-item grain;
+- order counts originate at order grain;
+- payment metrics originate at payment grain;
+- customer lifecycle metrics originate at persistent-customer grain;
+- review metrics originate at review grain unless an explicit order-level review rule is applied.
+
+---
+
+# 13. Governed Analytical Populations
+
+## POP-ORD-01 — All Observed Orders
+
+**Status:** Validated
+
+**Purpose:**  
+Represent the complete observed order population for source-level order monitoring and status analysis.
+
+**Eligibility Rule:**
+
+> Include every row from the Orders source.
+
+**Observed Population:**
+
+> 99,441 orders
+
+**Observed Status Values:**
+
+- `delivered`
+- `shipped`
+- `canceled`
+- `unavailable`
+- `invoiced`
+- `processing`
+- `created`
+- `approved`
+
+**Primary Uses:**
+
+- order-status distribution;
+- source completeness analysis;
+- order lifecycle monitoring;
+- denominator when explicitly measuring the complete observed order population.
+
+**Not Appropriate For:**
+
+- GMV;
+- completed-order AOV;
+- delivered-order logistics KPIs;
+- repeat-purchase analysis.
+
+---
+
+## POP-COM-01 — Completed Commercial Orders
+
+**Status:** Validated
+
+**Purpose:**  
+Represent completed marketplace transactions for core commercial reporting.
+
+**Eligibility Rule:**
+
+> `order_status = 'delivered'`
+
+and the order must have at least one corresponding order-item record.
+
+Source profiling confirmed that all delivered orders are represented in Order Items.
+
+**Rationale:**
+
+Canceled, unavailable, created, processing, invoiced, approved, or still-shipped orders should not automatically contribute to completed commercial performance.
+
+Using delivered orders provides a consistent completed-transaction population for executive marketplace metrics.
+
+**Primary Uses:**
+
+- GMV;
+- Valid Orders;
+- AOV;
+- Items Sold;
+- Category GMV;
+- Seller GMV;
+- commercial customer counts;
+- commercial mix analysis.
+
+**Important Interpretation:**
+
+Completed commercial transaction value remains **GMV**, not accounting revenue or profit.
+
+---
+
+## POP-CUST-01 — Observed Purchasing Customers
+
+**Status:** Validated
+
+**Purpose:**  
+Define the customer population used for customer lifecycle and behavioral analytics.
+
+**Eligibility Rule:**
+
+A persistent customer must have at least one order belonging to:
+
+> `POP-COM-01 — Completed Commercial Orders`
+
+Customer identity must be determined using:
+
+> `customer_unique_id`
+
+rather than transaction-specific `customer_id`.
+
+**Primary Uses:**
+
+- Active Customers;
+- New Customers;
+- Repeat Customers;
+- Repeat Purchase Rate;
+- Orders per Customer;
+- acquisition cohorts;
+- retention;
+- RFM segmentation;
+- observed customer monetary value.
+
+**Important Limitation:**
+
+The first purchase observed in the dataset cannot be assumed to represent the customer's true lifetime first purchase.
+
+---
+
+## POP-DEL-01 — Delivered Orders
+
+**Status:** Validated
+
+**Purpose:**  
+Represent completed deliveries for logistics and fulfillment analysis.
+
+**Eligibility Rule:**
+
+> `order_status = 'delivered'`
+
+**Observed Population:**
+
+> 96,478 orders
+
+**Primary Uses:**
+
+- delivery-data completeness analysis;
+- fulfillment monitoring;
+- base population for more restrictive delivery KPI populations.
+
+**Important Rule:**
+
+Delivered status alone does not guarantee that every operational timestamp is available.
+
+---
+
+## POP-DEL-02 — Delivery Lead-Time Eligible Orders
+
+**Status:** Validated
+
+**Purpose:**  
+Define the eligible population for customer delivery lead-time calculations.
+
+**Eligibility Rules:**
+
+- order belongs to `POP-DEL-01`;
+- `order_purchase_timestamp` is available;
+- `order_delivered_customer_date` is available.
+
+**Observed Population:**
+
+> 96,470 orders
+
+**Formula Supported:**
+
+> **Delivery Lead Time = Customer Delivery Timestamp − Purchase Timestamp**
+
+Source profiling found no customer-delivery-before-purchase violations in the comparable population.
+
+**Primary Uses:**
+
+- median delivery lead time;
+- delivery-time percentiles;
+- delivery lead-time distributions.
+
+---
+
+## POP-DEL-03 — Delivery Estimate Comparable Orders
+
+**Status:** Validated
+
+**Purpose:**  
+Define the eligible population for comparing actual delivery against estimated delivery.
+
+**Eligibility Rules:**
+
+- order belongs to `POP-DEL-01`;
+- `order_delivered_customer_date` is available;
+- `order_estimated_delivery_date` is available.
+
+**Observed Population:**
+
+> 96,470 orders
+
+**Primary Uses:**
+
+- Days Early / Late;
+- Late Delivery Rate;
+- delivery-estimate accuracy.
+
+**Validated Late Classification:**
+
+> **Late:** Actual Delivery Timestamp > Estimated Delivery Timestamp
+
+> **On Time / Early:** Actual Delivery Timestamp ≤ Estimated Delivery Timestamp
+
+Initial profiling identified:
+
+> 7,826 late delivered orders
+
+corresponding to an observed:
+
+> **8.1124% late-delivery rate**
+
+within the validated comparison population.
+
+---
+
+## POP-DEL-04 — Sequence-Valid Operational Orders
+
+**Status:** Validated as a required quality rule
+
+**Purpose:**  
+Provide valid populations for intermediate operational-duration metrics involving approval, carrier handoff, and customer delivery.
+
+Source profiling identified:
+
+- 1,359 orders where carrier handoff precedes approval;
+- 23 orders where customer delivery precedes carrier handoff.
+
+Therefore, intermediate duration metrics must require chronologically valid timestamp sequences.
+
+Examples include:
+
+### Approval-to-Carrier Population
+
+Requires:
+
+> `order_delivered_carrier_date >= order_approved_at`
+
+### Carrier-to-Customer Population
+
+Requires:
+
+> `order_delivered_customer_date >= order_delivered_carrier_date`
+
+**Important Rule:**
+
+The anomalous source records must remain preserved.
+
+They are excluded only from metrics whose mathematical interpretation requires valid chronological ordering.
+
+---
+
+## POP-PAY-01 — Valid Payment Records
+
+**Status:** Validated
+
+**Purpose:**  
+Represent observed payment events at their natural source grain.
+
+**Validated Grain:**
+
+> one row per `order_id + payment_sequential`
+
+**Eligibility Rule:**
+
+Use observed payment records while preserving their payment-sequence grain.
+
+**Primary Uses:**
+
+- payment-method analysis;
+- installments analysis;
+- payment-value analysis;
+- payment-record multiplicity.
+
+**Important Rule:**
+
+Payment measures must be aggregated to order grain before being combined with order-level or order-item analytical datasets.
+
+---
+
+## POP-PAY-02 — Payment Reconciliation Comparable Orders
+
+**Status:** Validated
+
+**Purpose:**  
+Compare aggregated payment values against aggregated item price plus freight.
+
+**Eligibility Rules:**
+
+An order must have:
+
+- at least one order-item record;
+- at least one payment record.
+
+**Observed Comparable Population:**
+
+> 98,665 orders
+
+Monetary reconciliation is calculated using integer cents.
+
+**Observed Results:**
+
+- 98,089 orders reconcile exactly;
+- 98,362 orders reconcile within one cent;
+- 303 orders differ by more than one cent.
+
+**Validated One-Cent Reconciliation Rate:**
+
+> **99.6929%**
+
+**Important Rule:**
+
+Payment reconciliation exceptions do not modify the definitions of GMV or Freight Value.
+
+`payment_value`, item price, and freight remain separate source measures.
+
+---
+
+## POP-REV-01 — Valid Review Records
+
+**Status:** Validated
+
+**Purpose:**  
+Represent observed customer-review records with valid score values.
+
+**Eligibility Rule:**
+
+> `review_score` must be between 1 and 5 inclusive.
+
+**Observed Population:**
+
+> 99,224 valid review records
+
+Source profiling identified:
+
+> 0 invalid review scores.
+
+**Primary Uses:**
+
+- review-score distribution;
+- Average Review Score;
+- Low Review Rate;
+- High Review Rate.
+
+**Validated Satisfaction Classifications:**
+
+> **Low Review:** `review_score <= 2`
+
+> **High Review:** `review_score >= 4`
+
+Initial observed rates are:
+
+- Low Review Rate: **14.6890%**
+- High Review Rate: **77.0680%**
+
+---
+
+## POP-REV-02 — Order-Integrated Review Population
+
+**Status:** Provisional
+
+**Purpose:**  
+Support analyses combining review outcomes with order-level commercial or logistics characteristics.
+
+Source profiling confirmed that:
+
+- 547 orders contain more than one review record;
+- a single order may contain up to 3 review records;
+- `review_id` alone is not a unique row identifier;
+- `review_id + order_id` uniquely identifies source review rows.
+
+Because review data is not strictly one-to-one with Orders, an explicit review consolidation or analytical-grain rule must be established before order-level review KPIs are considered fully validated.
+
+**Pending Decision:**
+
+The project must determine whether cross-domain analysis should:
+
+- remain at review grain;
+- select a canonical review per order;
+- or aggregate multiple reviews to an explicitly defined order-level measure.
+
+Until that decision is documented and implemented, order-integrated review metrics remain provisional.
+
+---
+
+## POP-GEO-01 — Standardized Geographic Population
+
+**Status:** Provisional
+
+**Purpose:**  
+Support consistent geographic enrichment of customers and sellers.
+
+Raw geolocation cannot be used directly because profiling identified:
+
+- 1,000,163 source records;
+- 19,015 distinct ZIP-code prefixes;
+- 261,831 exact duplicate rows beyond the first occurrence;
+- 17,972 ZIP prefixes represented by multiple rows;
+- up to 1,146 geolocation observations for a single ZIP prefix.
+
+A standardized geographic model must be implemented before geographic KPI breakdowns are considered validated.
+
+**Important Rule:**
+
+Direct analytical joins from customer or seller records to raw geolocation by ZIP-code prefix are prohibited.
+
+---
+
+## POP-TIME-01 — Comparable Calendar Periods
+
+**Status:** Provisional
+
+**Purpose:**  
+Define periods eligible for growth and time-series comparisons.
+
+Source profiling confirmed that order activity spans a finite historical observation window.
+
+Boundary periods may represent incomplete calendar periods and must not automatically be interpreted as comparable full months.
+
+Before MoM or YoY growth KPIs are finalized, the project must identify:
+
+- complete calendar periods;
+- partial boundary periods;
+- any periods with abnormal source coverage.
+
+**Primary Uses:**
+
+- GMV Growth;
+- Orders Growth;
+- time-series trend analysis.
+
+---
+
+# 14. Population-to-KPI Governance
+
+The analytical populations above become part of the formal KPI definition.
+
+A KPI can move from **Provisional** to **Validated** only when:
+
+1. its business definition is supported by the available source data;
+2. its natural grain has been validated;
+3. its analytical population has been defined;
+4. required source fields have been profiled;
+5. relevant missing values and exceptions have documented treatment;
+6. calculation logic is reproducible;
+7. the KPI does not rely on an unresolved modeling decision.
+
+This means KPI validation may occur incrementally.
+
+For example:
+
+> **Delivery Lead Time**
+
+can be validated using `POP-DEL-02`, while:
+
+> **Review Score Gap: Late vs On-Time Delivery**
+
+must remain provisional until the order-integrated review population in `POP-REV-02` is finalized.
